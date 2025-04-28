@@ -150,10 +150,12 @@ struct SparseKernel {
             for(int j = 0; j < kResidueInnerLimit; ++j){
                 const int k_item_idx = i * kResidueInnerLimit + j;
 
-                ScalarIndex scaled_indices = dense_row_offsets[0] * n * sizeof(ScalarValue);
-                ScalarValue lhs_values  = values_tile[k_item_idx];
+                //ScalarIndex scaled_indices = dense_row_offsets[0] * n * sizeof(ScalarValue);
+                size_t scaled_indices = static_cast<size_t>(dense_row_offsets[0]) * static_cast<size_t>(n) * sizeof(ScalarValue);
+								ScalarValue lhs_values  = values_tile[k_item_idx];
 
-                const DenseValue* matrix__ = SPC::OffsetCast<const DenseValue>(dense_matrix,scaled_indices);
+                //const DenseValue* matrix__ = SPC::OffsetCast<const DenseValue>(dense_matrix,scaled_indices);
+								const DenseValue* matrix__ = reinterpret_cast<const DenseValue*>(reinterpret_cast<const char*>(dense_matrix) + scaled_indices);
 
                 #pragma unroll
                 for(int l = 0; l < kDenseThreadItemsX; ++l) {
@@ -170,8 +172,10 @@ struct SparseKernel {
         }
         asm("");
 
-        const int output_offset = m_idx * n + n_idx;
-        if(atomicFlag) {
+        //const int output_offset = m_idx * n + n_idx;
+        
+				const size_t output_offset = static_cast<size_t>(m_idx) * static_cast<size_t>(n) + static_cast<size_t>(n_idx);
+				if(atomicFlag) {
             ScalarValue* output_matrix = C + output_offset + threadIdx.x * kDenseValuesPerLoad;
             #pragma unroll
             for(int i = 0; i < kDenseThreadItemsX; ++i) {
@@ -462,8 +466,9 @@ struct SparseKernel {
         }
 
         // Store to C
-        const int output_offset = r_idx * n + n_idx;
-        ScalarValue* output_matrix = C + output_offset + threadIdx.x * kDenseValuesPerLoad;
+        //const int output_offset = r_idx * n + n_idx;
+        const size_t output_offset = static_cast<size_t>(r_idx) * static_cast<size_t>(n) + static_cast<size_t>(n_idx);
+				ScalarValue* output_matrix = C + output_offset + threadIdx.x * kDenseValuesPerLoad;
         #pragma unroll
         for(int i = 0; i < kDenseThreadItemsX; ++i) {
             #pragma unroll
@@ -500,12 +505,28 @@ void RoDeSpmmKernel(int m1,int m2,int k,int n,const ScalarValue* __restrict__ va
         dim3 grid_dim2( (m2 + kBlockItemsY - 1) / kBlockItemsY, (n + kBlockItemsX2 - 1)/kBlockItemsX2,1);
     #endif
 
-    dim3 block_dim( kBlockWidth, kBlockItemsY, 1); 
+    dim3 block_dim( kBlockWidth, kBlockItemsY, 1);
 
-    RoDeComputeKernel1<ScalarValue,SparseValue,DenseValue,kBlockItemsY,kBlockItemsK,kBlockItemsX1,kBlockWidth,kResidueUnroll,STAGE><<<grid_dim1,block_dim,0,stream1>>>(m1,k,n,
-                        values,column_indices,row_offsets,row_indices1,row_seg_st_offsets,B,C);
-    RoDeComputeKernel2<ScalarValue,SparseValue,DenseValue,kBlockItemsY,kBlockItemsK,kBlockItemsX2,kBlockWidth,kResidueUnroll,STAGE><<<grid_dim2,block_dim,0,stream2>>>(m2,k,n,
-                        values,column_indices,row_offsets,row_indices2,B,C);
+    if (grid_dim1.x > 0 && grid_dim1.y > 0 && grid_dim1.z > 0) {
+        RoDeComputeKernel1<ScalarValue, SparseValue, DenseValue,
+                        kBlockItemsY, kBlockItemsK, kBlockItemsX1,
+                        kBlockWidth, kResidueUnroll, STAGE>
+            <<<grid_dim1, block_dim, 0, stream1>>>(m1, k, n,
+                                                values, column_indices,
+                                                row_offsets, row_indices1,
+                                                row_seg_st_offsets, B, C);
+    }
+
+    if (grid_dim2.x > 0 && grid_dim2.y > 0 && grid_dim2.z > 0) {
+        RoDeComputeKernel2<ScalarValue, SparseValue, DenseValue,
+                        kBlockItemsY, kBlockItemsK, kBlockItemsX2,
+                        kBlockWidth, kResidueUnroll, STAGE>
+            <<<grid_dim2, block_dim, 0, stream2>>>(m2, k, n,
+                                                values, column_indices,
+                                                row_offsets, row_indices2,
+                                                B, C);
+    }
+
 }
 
 void RoDeSpmm_n32(int m1,int m2,int k,int n,const float* __restrict__ values,const int * __restrict__ column_indices,const int * __restrict__ row_offsets,const int *__restrict__ row_indices1,const int *__restrict__ row_indices2,\
