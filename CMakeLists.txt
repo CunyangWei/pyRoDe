@@ -34,7 +34,7 @@ target_link_libraries(rodespmm_lib INTERFACE myutils RoDe_spmm)
 
 add_subdirectory(utils)
 add_subdirectory(RoDe_SpMM)
-# add_subdirectory(eval)
+add_subdirectory(eval)
 
 # Add python bindings subdirectory
 add_subdirectory(python_bindings)
