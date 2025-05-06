@@ -79,11 +79,8 @@ public:
         }
 
         bool res = is_cuda(row_offsets);
-        std::cout << "row_offsets is_cuda: " << res << std::endl;
         res = is_cuda(column_indices);
-        std::cout << "column_indices is_cuda: " << res << std::endl;
         res = is_cuda(values);
-        std::cout << "values is_cuda: " << res << std::endl;
 
         bool is_gpu_data = (device == "GPU") && 
                           is_cuda(row_offsets) && 
@@ -107,25 +104,19 @@ public:
                 size_t values_size = nonzeros * sizeof(float);
                 size_t total_requested = row_offsets_size + column_indices_size + values_size;
                 
-                std::cout << "Memory requested: " << total_requested << " bytes" << std::endl;
-                
                 int* h_row_offsets = nullptr;
                 int* h_column_indices = nullptr;
                 float* h_values = nullptr;
                 
                 try {
                     h_row_offsets = new int[rows + 1];
-                    std::cout << "Allocated h_row_offsets" << std::endl;
                     h_column_indices = new int[nonzeros];
-                    std::cout << "Allocated h_column_indices" << std::endl;
                     h_values = new float[nonzeros];
-                    std::cout << "Allocated h_values" << std::endl;
                 } catch (const std::bad_alloc& e) {
                     std::cerr << "Memory allocation failed! Requested: " << total_requested / 1024 /1024 / 1024 << " GB" << std::endl;
                     throw std::runtime_error("Failed to allocate host memory for sparse matrix");
                 }
 
-                std::cout << "Allocated host memory" << std::endl;
                 cudaError_t err1 = cudaMemcpy(h_row_offsets, d_row_offsets, (rows + 1) * sizeof(int), cudaMemcpyDeviceToHost);
                 if (err1 != cudaSuccess) {
                     delete[] h_row_offsets;
@@ -133,7 +124,6 @@ public:
                     delete[] h_values;
                     throw std::runtime_error("Failed to copy data from GPU to host");
                 }
-                std::cout << "Copied row_offsets" << std::endl;
                 cudaError_t err2 = cudaMemcpy(h_column_indices, d_column_indices, nonzeros * sizeof(int), cudaMemcpyDeviceToHost);
                 if (err2 != cudaSuccess) {
                     delete[] h_row_offsets;
@@ -141,7 +131,6 @@ public:
                     delete[] h_values;
                     throw std::runtime_error("Failed to copy data from GPU to host");
                 }
-                std::cout << "Copied column_indices" << std::endl;
                 cudaError_t err3 = cudaMemcpy(h_values, d_values, nonzeros * sizeof(float), cudaMemcpyDeviceToHost);
                 if (err3 != cudaSuccess) {
                     delete[] h_row_offsets;
@@ -149,7 +138,6 @@ public:
                     delete[] h_values;
                     throw std::runtime_error("Failed to copy data from GPU to host");
                 }
-                std::cout << "Copied values" << std::endl;
                 
 
                 if (err1 != cudaSuccess || err2 != cudaSuccess || err3 != cudaSuccess) {
@@ -162,7 +150,6 @@ public:
                 // Create sparse matrix on host
                 host_sm = new SPC::SparseMatrix(h_row_offsets, h_column_indices, h_values, 
                                               rows, cols, nonzeros, SPC::SORTED, 1);
-                std::cout << "Create sparse matrix on host" << std::endl;
                 // Free temporary host memory
                 delete[] h_row_offsets;
                 delete[] h_column_indices;
@@ -200,22 +187,12 @@ public:
                 throw std::runtime_error(std::string("Error accessing CPU arrays: ") + e.what());
             }
         }
-        std::cout << "start devide" << std::endl;
-        // Divide into segments
+        
         try {
 
             host_sm->RowDivide2Segment(seg_length, 4, 32);
-            std::cout << "devided" << std::endl;
             device_sm = new SPC::CudaSparseMatrix<float>(*host_sm);
-            std::cout << "created device_sm" << std::endl;
             
-            // Print some information about the sparse matrix
-            // std::cout << "Sparse matrix info:" << std::endl;
-            // std::cout << "  Rows: " << device_sm->Rows() << std::endl;
-            // std::cout << "  Columns: " << device_sm->Columns() << std::endl;
-            // std::cout << "  Non-zeros: " << device_sm->Nonzeros() << std::endl;
-            // std::cout << "  Segments: " << device_sm->n_segs << std::endl;
-            // std::cout << "  Residue segments: " << device_sm->n_segs_residue << std::endl;
 
         } catch (const std::exception& e) {
             delete host_sm;
@@ -225,7 +202,6 @@ public:
             std::cerr << "Error initializing sparse matrix: " << e.what() << std::endl;
             throw std::runtime_error(std::string("Error initializing sparse matrix: ") + e.what());
         }
-        std::cout << "DONE!!!!!!!!!!!!!" << std::endl;
     }
     
     ~CudaSpMat() {
@@ -274,16 +250,6 @@ public:
         
         // Get raw pointer from C
         float* d_C = get_cuda_ptr<float>(C);
-        
-        // Perform SPMM operation
-
-        // std::cout << "SPMM operation info:" << std::endl;
-        // std::cout << "  Matrix B shape: " << B_rows << "x" << B_cols << std::endl;
-        // std::cout << "  Output C shape: " << rows << "x" << B_cols << std::endl;
-        // std::cout << "  Using kernel: " << (B_cols < 128 ? "RoDeSpmm_n32" : "RoDeSpmm_n128") << std::endl;
-        // std::cout << "  n_segs: " << device_sm->n_segs << std::endl;
-        // std::cout << "  n_segs_residue: " << device_sm->n_segs_residue << std::endl;
-        // std::cout << "  columns: " << device_sm->Columns() << std::endl;
 
         // Ensure n_segs is at least 1 for the kernel call to be valid
         // This is a workaround for the case where n_segs = 0
@@ -330,7 +296,6 @@ public:
         // Synchronize to ensure the computation is complete
         cudaStreamSynchronize(stream1);
         cudaStreamSynchronize(stream2);
-        // std::cout << "SPMM completed successfully" << std::endl;
 
         
         return C;

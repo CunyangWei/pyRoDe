@@ -204,7 +204,8 @@ int main(int argc, char **argv)
     cudaDeviceSynchronize();
 
     gflops = (double)ITER * (double)c_sm.Nonzeros() * 2 * n / tot_ms / 1000000;
-    printf(", %f, %f", tot_ms / (float)ITER, gflops);
+    // printf(", %f, %f", tot_ms / (float)ITER, gflops);
+    printf("cuda spmm time: %f, gflops: %f\n", tot_ms / (float)ITER, gflops);
     cudaDeviceSynchronize();
 
 #if VALIDATE_RESULTS
@@ -252,7 +253,7 @@ int main(int argc, char **argv)
 
     gflops = (double)ITER * (double)c_sm.Nonzeros() * 2 * n / tot_ms / 1000000;
 
-    printf(", %f, %f\n", tot_ms / (float)ITER, gflops);
+    printf("RoDe spmm time: %f, gflops: %f\n", tot_ms / (float)ITER, gflops);
 
 #if VALIDATE_RESULTS
     float *h_C2 = (float *)malloc(sizeof(float) * m * n);

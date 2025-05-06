@@ -601,23 +601,17 @@ __host__ SparseMatrix::SparseMatrix(const int* row_offsets_input, const int* col
   nonzeros_ = nonzeros;
   row_swizzle_ = row_swizzle;
   pad_rows_to_ = pad_rows_to;
-
-  std::cout << "rows: " << rows_ << " columns: " << columns_ << " nonzeros: " << nonzeros_ << std::endl;
   
   // Convert CSR data to vectors for padding
   std::vector<int> row_offsets_staging(row_offsets_input, row_offsets_input + rows + 1);
-  std::cout << "row_offsets_staging: " << row_offsets_staging.size() << std::endl;
   std::vector<int> column_indices_staging(column_indices_input, column_indices_input + nonzeros);
-  std::cout << "row_offsets_staging: " << row_offsets_staging.size() << std::endl;
   std::vector<float> values_staging(values_input, values_input + nonzeros);
-  std::cout << "values_staging: " << values_staging.size() << std::endl;
   
   // Apply padding
   std::vector<int> row_offsets_staging1, column_indices_staging1;
   std::vector<float> values_staging1;
   PadSparseMatrix(row_offsets_staging, values_staging, column_indices_staging, pad_rows_to,
                  &row_offsets_staging1, &values_staging1, &column_indices_staging1);
-  std::cout << "!!!!!!!!!!!!!!!!!!!!!!! " << std::endl;
   
   
   num_elements_with_padding_ = row_offsets_staging1[rows_];
@@ -626,13 +620,10 @@ __host__ SparseMatrix::SparseMatrix(const int* row_offsets_input, const int* col
   values_ = new float[num_elements_with_padding_];
   column_indices_ = new int[num_elements_with_padding_];
   row_offsets_ = new int[rows_ + 1];
-  std::cout << "Allocate memory and copy data " << std::endl;
   
   std::memcpy(values_, values_staging1.data(), num_elements_with_padding_ * sizeof(float));
   std::memcpy(column_indices_, column_indices_staging1.data(), num_elements_with_padding_ * sizeof(int));
   std::memcpy(row_offsets_, row_offsets_staging1.data(), (rows_ + 1) * sizeof(int));
-
-  std::cout << "memcpy!!!!!!!!!!!!!!!! " << std::endl;
   
   // Set row indices
   row_indices_ = new int[rows_];
@@ -641,8 +632,6 @@ __host__ SparseMatrix::SparseMatrix(const int* row_offsets_input, const int* col
   } else {
     SortedRowSwizzle(rows_, row_offsets_, row_indices_);
   }
-  
-  std::cout << "sort!!!!!!!!!!!!!!! " << std::endl;
 
   // Initialize other data structures
   row_indices_1 = new int[rows_];
@@ -663,16 +652,11 @@ void SparseMatrix::RowDivide2Segment(int SegmentLength,int vectorLen,int KBLOCK)
   std::vector<int> row_indices_staging;
   std::vector<int> st_offsets_staging;
   std::vector<int> row_indices_residue_staging;
-  std::cout << "SegmentLength: " << SegmentLength << " vectorLen: " << vectorLen << " KBLOCK: " << KBLOCK << std::endl;
-  std::cout << "rows_: " << rows_ << " row_offsets_: " << row_offsets_[rows_] << std::endl;
 
   for(int i=0; i < rows_; ++i) {
     int row_offset = row_offsets_[i];
     int n_padding = row_offset % vectorLen;
     int nnz = row_offsets_[i+1] - row_offset + n_padding;
-    if(i <10) {
-      std::cout << "i: " << i << " nnz: " << nnz << " row_offset: " << row_offset << " n_padding: " << n_padding << std::endl;
-    }
     
     if(nnz > SegmentLength) {
       row_indices_staging.push_back(i);
@@ -699,11 +683,7 @@ void SparseMatrix::RowDivide2Segment(int SegmentLength,int vectorLen,int KBLOCK)
         row_indices_residue_staging.push_back(i);
       }
     }
-    if(i <10) {
-      std::cout << "row_indices_staging: " << row_indices_staging.size() << " st_offsets_staging: " << st_offsets_staging.size() << " row_indices_residue_staging: " << row_indices_residue_staging.size() << std::endl;
-    }
   }
-  std::cout << "row_indices_staging: " << row_indices_staging.size() << " st_offsets_staging: " << st_offsets_staging.size() << " row_indices_residue_staging: " << row_indices_residue_staging.size() << std::endl;
 
   st_offsets_staging.push_back(row_offsets_[rows_]);
 
@@ -715,24 +695,16 @@ void SparseMatrix::RowDivide2Segment(int SegmentLength,int vectorLen,int KBLOCK)
     delete[] seg_row_indices_residue;
   }
 
-  std::cout << "11111111111111111" << std::endl;
-
   n_segs = row_indices_staging.size();
   seg_row_indices = new int[n_segs];
   seg_st_offsets = new int[n_segs+1];
 
-  std::cout << "222222222222222222222222" << std::endl;
-
   n_segs_residue = row_indices_residue_staging.size();
   seg_row_indices_residue = new int[n_segs_residue];
-
-  std::cout << "3333333333333333333333" << std::endl;
 
   std::memcpy(seg_row_indices,row_indices_staging.data(),sizeof(int)*n_segs);
   std::memcpy(seg_st_offsets,st_offsets_staging.data(),sizeof(int)*(n_segs+1));
   std::memcpy(seg_row_indices_residue,row_indices_residue_staging.data(),sizeof(int)*n_segs_residue);
-
-  std::cout << "n_segs: " << n_segs << " n_segs_residue: " << n_segs_residue << std::endl;
 }
 }  
 

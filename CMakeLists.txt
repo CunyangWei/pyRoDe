@@ -37,4 +37,4 @@ add_subdirectory(RoDe_SpMM)
 add_subdirectory(eval)
 
 # Add python bindings subdirectory
-add_subdirectory(python_bindings)
+# add_subdirectory(python_bindings)
